@@ -15,6 +15,9 @@ f = d:option(Flag,"_flagaa","Test DNS")
 f.default=0
 
 
+function o.cfgvalue()
+	return "test necoho strasne dlouho"
+end
 
 
 btn = d:option(Button, "_btn", translate("Click this to run a script"))
