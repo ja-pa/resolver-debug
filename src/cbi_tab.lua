@@ -33,14 +33,24 @@ function btn.write()
     local field2 = luci.http.formvalue("cbid.cbi_file.A._flagaa")
 
     --ubus call resolver_rpcd.py list_dns '{}'
-    local dump = util.ubus("resolver_rpcd.py", "list_dns", { })
+    --local dump = util.ubus("resolver_rpcd.py", "list_dns", { })
+    --
+testik= [[<table>
+<tr><th>Domain</th><th>DNS</th><th>DNSSEC</th></tr>
+<tr><td>oskar.cz</td><td>OK</td><td>Failed</td></tr>
+<tr><td>wild.oskar.cz</td><td>OK</td><td>Failed</td></tr>
+</table>]]
+ 
     if field2 == nil then
 	luci.http.write(field1)
 	else
 	luci.http.write(field1..field2)
 	end
+
+	luci.http.write(testik)
 	
-	luci.http.write_json(dump["list_dns"][1])
+	--luci.http.write_json(dump["list_dns"][1])
+	--
 
 end
 

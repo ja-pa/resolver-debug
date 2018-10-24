@@ -12,12 +12,7 @@ import sys
 import json
 import pprint
 import syslog
-
-
-"""
-opendns without dnssec validation - Primary, secondary DNS servers: 208.67.222.222 and 208.67.220.220
-
-"""
+import select
 
 
 def log():
@@ -53,16 +48,21 @@ def conv_to_dict(text):
     return {i.split(":")[0]: i.split(":")[1] for i in text.split(",")}
 
 
-def test_rootkey():
-    pass
+class Resolver:
+    def __init__(self):
+        pass
 
+    def restart_resolver(self):
+        pass
 
-def test_date():
-    pass
+    def set_dnssec(self, val):
+        pass
 
+    def set_debug(self, level):
+        pass
 
-def set_dnssec(val):
-    pass
+    def test_rootkey(self):
+        pass
 
 
 class ResolverDebug:
@@ -79,8 +79,8 @@ class ResolverDebug:
         authority_text = ""
         for line in raw.split("\\n"):
             if line.find("->>HEADER<<-") > 0:
-                ccc = line.replace(" ", "").replace(";;->>HEADER<<-", "")
-                header = conv_to_dict(ccc)
+                clean_line = line.replace(" ", "").replace(";;->>HEADER<<-", "")
+                header = conv_to_dict(clean_line)
 
             if line.find("flags:") > 0 and line.startswith(";;"):
                 aa = line.replace(": ", ":").replace(";; ", "")
@@ -136,14 +136,13 @@ class ResolverDebug:
                     stat = line.split(",")
                 if line.find("ping statistics ---") > 0:
                     stat_section = True
-            loss = int(stat[2].replace(" ", "").replace("%packetloss", ""))
+            loss = int(stat[2].replace(" ", "").replace("%packetloss", "").strip())
             status = "ok"
         return{"packet_loss": loss, "status": status}
 
     def test_ping(self, address):
-        out_cmd = str(call_cmd(["ping", "-c 5", address, "-w 5"]))
+        out_cmd = str(call_cmd(["ping", "-c", "5", "-w", "5", address]))
         resp = self.parse_ping(out_cmd)
-        print(resp)
         if resp["packet_loss"] != 100 and resp["status"] == "ok":
             return True
         else:
@@ -175,13 +174,14 @@ class ResolverDebug:
 
 
 """
+opendns without dnssec validation - Primary, secondary DNS servers: 208.67.222.222 and 208.67.220.220
+
 SERVFAIL
 NXDOMAIN
 NOERROR
-"""
 
-"""
 resolver="8.8.8.8"
+
 print("aaaaaaaaaaaaaaaaaaaaaaaa")
 print(test_dig("www.idnes.cz",resolver,True))
 print(test_dig("www.idnes.cz",resolver,True))
@@ -203,11 +203,59 @@ print(test_dig("www.rhybar.cz ",resolver,True))            # should fail
 """
 
 
+cmd_list = {
+ "test_dig": {"domain": "str",
+              "resolver": "str",
+              "dnssec": "str"},
+ "test_ping": {"destination": "str"}
+ }
+
+
+def call_dig(domain, resolver, dnssec):
+    dnssec = dnssec in ['true', '1', 't', 'y', 'yes', 'True', 'TRUE']
+    rd = ResolverDebug()
+    return rd.test_dig(domain, resolver, dnssec)
+
+
+def call_ping(destination):
+    rd = ResolverDebug()
+    return rd.test_ping(destination)
+
+
+def load_stdin_args():
+    if select.select([sys.stdin, ], [], [], 0.0)[0]:
+        return json.loads(str(sys.stdin.readlines()[0]))
+    else:
+        return None
+
+
 if __name__ == "__main__":
     if len(sys.argv) > 1:
         if sys.argv[1] == "list":
-            print(json.dumps({"aaa": {}}))
+            print(json.dumps(cmd_list))
         elif sys.argv[1] == "call":
-            print("Print call")
+            args=load_stdin_args()
+            syslog.syslog(str(args))
+            if sys.argv[2] == "test_ping":
+                if args:
+                    ret = call_ping(args["destination"])
+                else:
+                    ret = "false"
+                print('{"status":"%s"}' % str(ret))
+            elif sys.argv[2] == "test_dig":
+                if args:
+                    ret = call_dig(args["domain"], args["resolver"], args["dnssec"])
+                else:
+                    ret = "false"
+                print('{"status":"%s"}' % str(ret))
         else:
             syslog.syslog("Unknown argument.")
+
+"""
+Example call:
+# ubus -v call  resolver-debug.py "test_dig" '{"domain":"www.nic.cz","resolver":"8.8.8.8","dnssec":"true"}'
+# ubus -v call  resolver-debug.py "test_ping" '{"destination":"1.1.1.1"}'
+{
+    "status": "True"
+}
+"""
