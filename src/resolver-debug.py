@@ -44,19 +44,26 @@ def uci_set(path, val):
     return call_cmd(["uci", "set", "%s=%s" % (path, val)])
 
 
+def uci_commit(val):
+    return call_cmd(["uci", "commit", val])
+
+
 def conv_to_dict(text):
     return {i.split(":")[0]: i.split(":")[1] for i in text.split(",")}
 
 
 class Resolver:
     def __init__(self):
-        pass
+        self.kresd_rundir = uci_get("resolver.kresd.rundir")
 
     def restart_resolver(self):
-        pass
+        return call_cmd(["/etc/init.d/resolver", "restart"])
 
     def set_dnssec(self, val):
-        pass
+        return uci_set("resolver.common.ignore_root_key", val)
+
+    def set_verbose(self, val):
+        return uci_set("resolver.common.verbose", val)
 
     def set_debug(self, level):
         pass
@@ -259,3 +266,4 @@ Example call:
     "status": "True"
 }
 """
+

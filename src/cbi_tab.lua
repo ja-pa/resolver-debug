@@ -19,7 +19,7 @@ function o.cfgvalue()
 	return "test necoho strasne dlouho"
 end
 
-
+--aasdfasdf
 btn = d:option(Button, "_btn", translate("Click this to run a script"))
 
 function btn.write()
@@ -33,24 +33,26 @@ function btn.write()
     local field2 = luci.http.formvalue("cbid.cbi_file.A._flagaa")
 
     --ubus call resolver_rpcd.py list_dns '{}'
-    --local dump = util.ubus("resolver_rpcd.py", "list_dns", { })
-    --
+    --local dump = util.ubus("resolver-debugrpcd.py", "list_dns", { })
+    --local dump = util.ubus("resolver-debug.py", "test_dig",{"domain":"www.nic.cz","resolver":"8.8.8.8","dnssec":"true"} )
+
+--# ubus -v call  resolver-debug.py "test_dig" '{"domain":"www.nic.cz","resolver":"8.8.8.8","dnssec":"true"}'
+
 testik= [[<table>
 <tr><th>Domain</th><th>DNS</th><th>DNSSEC</th></tr>
 <tr><td>oskar.cz</td><td>OK</td><td>Failed</td></tr>
 <tr><td>wild.oskar.cz</td><td>OK</td><td>Failed</td></tr>
 </table>]]
  
-    if field2 == nil then
+if field2 == nil then
 	luci.http.write(field1)
-	else
+else
 	luci.http.write(field1..field2)
-	end
+end
 
 	luci.http.write(testik)
 	
-	--luci.http.write_json(dump["list_dns"][1])
-	--
+	luci.http.write_json(dump)
 
 end
 
