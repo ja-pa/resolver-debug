@@ -24,6 +24,52 @@ btn_resolver = d:option(Button, "_btn_resolver", translate("Run resolver test"))
 btn_domain = d:option(Button, "_btn_domain", translate("Run domain test"))
 
 
+
+
+
+function test_dig_tbl()
+local util = require "luci.util"
+  ret_tbl="<div width=600px ><table>\n<tr><th>URL</th><th>Test result</th></tr>"
+  t_dest={"www.nic.cz","www.seznam.cz"}
+  -- URL, DNSSEC enabled , should pass
+  t_domains={
+      {"api.turris.cz",True},               --should pass
+      {"www.google.com",True},              --should pass
+      {"www.youtube.com",True},             --should pass
+      {"www.facebook.com",True},            --should pass
+      {"*.wilda.nsec.0skar.cz",True},       --should pass
+      {"www.wilda.nsec.0skar.cz",True},     --should pass
+      {"www.wilda.0skar.cz",True},          --should pass
+      {"*.wilda.0skar.cz",True},            --should pass
+      {"*.wild.0skar.cz",True},             --should pass
+      {"*.wild.nsec.0skar.cz",True},        --should pass
+      {"*.wilda.rhybar.ecdsa.0skar.cz",True},--should fail
+      {"*.wilda.rhybar.0skar.cz",True},     --should fail
+      {"www.rhybar.cz ",True}               --should fail
+  }
+
+
+  for key,value in pairs(t_domains) do
+    --local aaa=value[1]
+    local state=""
+    --local ret= util.ubus("resolver-debug.py", "test_dig",'{"domain":"' .. value[1] .. '","resolver":"8.8.8.8","dnssec":"true"}' )
+    local ret= util.ubus("resolver-debug.py", "test_dig",
+    {domain=value[1],
+    resolver="8.8.8.8",
+    dnssec="true"} )
+    if ret["status"] == tostring(value[2]) then
+      state="OK"
+    else
+      state="Failed"
+    end
+    state=ret["status"]
+    ret_tbl=ret_tbl .. "<tr><td>".. value[1] .."</td><td>" .. state .."</td></tr>\n"
+  end
+
+	ret_tbl=ret_tbl .. "</table></div>"
+  return ret_tbl
+end
+
 function btn_resolver.write()
 
     --luci.http.write("Haha, rebooting now...")
@@ -43,7 +89,9 @@ function btn_resolver.write()
 
     --ubus call resolver_rpcd.py list_dns '{}'
     --local dump = util.ubus("resolver-debugrpcd.py", "list_dns", { })
-    --local dump = util.ubus("resolver-debug.py", "test_dig",{"domain":"www.nic.cz","resolver":"8.8.8.8","dnssec":"true"} )
+    local dump = util.ubus("resolver-debug.py", "test_dig",'{"domain":"www.nic.cz","resolver":"8.8.8.8","dnssec":"true"}')
+    luci.http.write_json(dump["status"])
+    --'{"domain":"www.nic.cz","resolver":"8.8.8.8","dnssec":"true"}'
 
 --# ubus -v call  resolver-debug.py "test_dig" '{"domain":"www.nic.cz","resolver":"8.8.8.8","dnssec":"true"}'
 
@@ -52,7 +100,7 @@ testik= [[<table>
 <tr><td>oskar.cz</td><td>OK</td><td>Failed</td></tr>
 <tr><td>wild.oskar.cz</td><td>OK</td><td>Failed</td></tr>
 </table>]]
-luci.template.render("myapp-mymodule/view_tab",{domain=testik})
+luci.template.render("myapp-mymodule/view_tab",{domain=test_dig_tbl()})
  
 --if field2 == nil then
 --   luci.http.write(field1)
