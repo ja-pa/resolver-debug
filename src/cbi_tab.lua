@@ -1,12 +1,25 @@
 local util = require "luci.util"
+local uci = require "luci.model.uci".cursor()
 
 function test_domain(domain,resolver,dnssec)
-  local ret= util.ubus( "resolver-debug.py",
-                        "test_dig",
-                        {domain=domain,
-                        resolver=resolver,
-                        dnssec=dnssec})
-  return ret["status"]
+	local ret = util.ubus("resolver-debug.py",
+						"test_dig",
+						{domain=domain,
+						resolver=resolver,
+						dnssec=dnssec})
+	return ret["status"]
+end
+
+function test_dig(domain_name)
+    local ret= util.ubus("resolver-debug.py", "test_dig",
+                          {domain=domain_name,
+                          resolver="127.0.0.1",
+                          dnssec="true"} )
+    if ret["status"] == "True" then
+        return True
+    else
+        return False
+    end
 end
 
 function test_dig_tbl()
@@ -48,6 +61,35 @@ function test_dig_tbl()
 
 	ret_tbl=ret_tbl .. "</table></div>"
   return ret_tbl
+end
+
+function autotest_dns()
+	--in case thaht domain test fails we are droping to next test
+	local util = require "luci.util"
+	local domain
+
+	--normal test 
+	if test_domain(domain, "127.0.0.1", "true")  == "True" then
+		return "Everything is normal"
+	end
+
+	uci:set("resolver", "common", "forward_upstream", "0")
+	uci:commit("resolver")
+	-- test Forwarding
+	if test_domain(domain, "127.0.0.1", "true")  == "True" then
+		return "ISP forwarding error, when forwarded to isp something is not working"
+	end
+
+	--testdnssec
+	uci:set("resolver","common","ignore_root_key","1")
+	uci:commit("resolver")
+	if test_domain(domain, "127.0.0.1", "true")  ~= "True"  then
+		--set to previos value
+		uci:set("resolver","common","ignore_root_key","0")
+		uci:commit("resolver")
+		return "ISP DNSSEC error"
+	end
+	
 end
 
 
@@ -102,7 +144,9 @@ function btn_domain.write()
         ret = test_domain(domain, resolver, dnssec)
         ret_tmp = ret_tmp .. "<tr><td>" .. domain .. "</td><td>" .. ret .. "</td></tr>\n"
     end
+    local aaa=uci:get("resolver", "common", "forward_upstream")
     ret_tmp = ret_tmp .. "</table>"
+    ret_tmp = ret_tmp .. "dafdsaf asd ".. tostring(aaa)
 
     luci.template.render("myapp-mymodule/view_tab", {domain=ret_tmp})
 end
