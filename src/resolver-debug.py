@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
 Created on Tue Oct 16 17:54:49 2018
@@ -50,6 +50,23 @@ def uci_commit(val):
 
 def conv_to_dict(text):
     return {i.split(":")[0]: i.split(":")[1] for i in text.split(",")}
+
+
+class LogParser:
+    def __init__(self, log_path="/tmp/log/messages"):
+        self.__log_path = log_path
+
+    def get_log(self, keywords, filter_empty=False):
+        ret = []
+        with open(self.__log_path, "r") as fp:
+            for line in fp.readlines():
+                arr = line.split(maxsplit=4)
+                if len(arr) > 4 or (filter_empty is False and len(arr) == 4):
+                    for key in keywords:
+                        if arr[3].find(key) >= 0:
+                            ret.append(arr)
+                            ret.append(len(arr))
+        return ret
 
 
 class Resolver:
@@ -180,41 +197,12 @@ class ResolverDebug:
             sys.exit(1)
 
 
-"""
-opendns without dnssec validation - Primary, secondary DNS servers: 208.67.222.222 and 208.67.220.220
-
-SERVFAIL
-NXDOMAIN
-NOERROR
-
-resolver="8.8.8.8"
-
-print("aaaaaaaaaaaaaaaaaaaaaaaa")
-print(test_dig("www.idnes.cz",resolver,True))
-print(test_dig("www.idnes.cz",resolver,True))
-
-print(test_dig("api.turris.cz",resolver,True))             # should pass
-print(test_dig("www.google.com",resolver,True))            # should pass
-print(test_dig("www.youtube.com",resolver,True))           # should pass
-print(test_dig("www.facebook.com",resolver,True))          # should pass
-print(test_dig("*.wilda.nsec.0skar.cz",resolver,True))     # should pass
-print(test_dig("www.wilda.nsec.0skar.cz",resolver,True))   # should pass
-print(test_dig("www.wilda.0skar.cz",resolver,True))        # should pass
-print(test_dig("*.wilda.0skar.cz",resolver,True))          # should pass
-print(test_dig("*.wild.0skar.cz",resolver,True))           # should pass
-print(test_dig("*.wild.nsec.0skar.cz",resolver,True))      # should pass
-
-print(test_dig("*.wilda.rhybar.ecdsa.0skar.cz",resolver,True))  # should fail
-print(test_dig("*.wilda.rhybar.0skar.cz",resolver,True))   # should fail
-print(test_dig("www.rhybar.cz ",resolver,True))            # should fail
-"""
-
-
 cmd_list = {
  "test_dig": {"domain": "str",
               "resolver": "str",
               "dnssec": "str"},
- "test_ping": {"destination": "str"}
+ "test_ping": {"destination": "str"},
+ "get_logs": {}
  }
 
 
@@ -236,13 +224,19 @@ def load_stdin_args():
         return None
 
 
+def get_logs():
+    lp = LogParser(log_path="/tmp/log/messages")
+    return json.dumps(lp.get_log(["kresd", "unbound", "dhcp_host_domain_ng.py"], True))
+
+
 if __name__ == "__main__":
     if len(sys.argv) > 1:
         if sys.argv[1] == "list":
             print(json.dumps(cmd_list))
         elif sys.argv[1] == "call":
-            args=load_stdin_args()
+            args = load_stdin_args()
             syslog.syslog(str(args))
+            # parse commands
             if sys.argv[2] == "test_ping":
                 if args:
                     ret = call_ping(args["destination"])
@@ -255,6 +249,9 @@ if __name__ == "__main__":
                 else:
                     ret = "false"
                 print('{"status":"%s"}' % str(ret))
+            elif sys.argv[2] == "get_logs":
+                    ret = get_logs()
+                    print('{"status":"%s"}' % str(ret))
         else:
             syslog.syslog("Unknown argument.")
 
@@ -266,4 +263,3 @@ Example call:
     "status": "True"
 }
 """
-
